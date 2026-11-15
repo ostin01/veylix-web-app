@@ -44,3 +44,24 @@ select.input {
   background-position: right .6rem center;
 }
 }
+
+/* Leaflet: transparent marker wrapper and dark-theme controls */
+.vx-marker { background: transparent; border: 0; }
+.vx-map-cluster-wrapper { background: transparent; border: 0; }
+.vx-map-cluster {
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(255,255,255,.9);
+  border-radius: 9999px;
+  background: rgba(109,93,252,.9);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 0 0 5px rgba(109,93,252,.2);
+}
+.leaflet-container, .leaflet-container.leaflet-container { background: #0b1226; font-family: inherit; }
+.vx-map-tiles-dark { filter: brightness(0.65) invert(1) hue-rotate(180deg) saturate(0.5) brightness(0.8); }
+.leaflet-control-attribution { background: rgba(7, 11, 24, 0.75) !important; color: #94a3b8 !important; }
+.leaflet-control-attribution a { color: #94a3b8 !important; }
+.leaflet-touch .leaflet-bar a, .leaflet-bar a, .leaflet-bar a.leaflet-bar-part { background: #121a33; color: #e2e8f0; border-color: #1f2a48; }
+.leaflet-bar a:hover, .leaflet-bar a.leaflet-bar-part:hover { background: #1a2547; }

@@ -1,15 +1,15 @@
 "use client";
 
-import { AlertTriangle, Car, CheckCircle2, Layers, MapPin, Radio } from "lucide-react";
+import { AlertTriangle, Car, CheckCircle2, Layers, Map as MapIcon, MapPin, Radio } from "lucide-react";
 import Link from "next/link";
 import { useMemo, type ReactNode } from "react";
 import { SeverityBadge } from "@/components/alerts";
 import { Donut, Legend } from "@/components/donut";
-import { FleetMap } from "@/components/fleet-map";
+import dynamic from "next/dynamic";
 import { Badge, EmptyState, ErrorBanner, PageHeader, Spinner, connectionTone } from "@/components/ui";
 import { pct, timeAgo, titleCase } from "@/lib/format";
 import {
-  useActiveAlertTotal,
+  useAlertSummary,
   useAlerts,
   useDeviceTotal,
   useDevices,
@@ -18,9 +18,14 @@ import {
   useLatestTelemetry,
   useVehicleLookup,
   useVehicleTotal,
-  useVehicles,
 } from "@/lib/hooks";
 import type { AlertSeverity } from "@/lib/types";
+
+// Leaflet touches `window`, so the map is client-only.
+const FleetMap = dynamic(() => import("@/components/fleet-map").then((m) => m.FleetMap), {
+  ssr: false,
+  loading: () => <div className="grid h-[420px] place-items-center text-sm text-muted">Loading map…</div>,
+});
 
 function Kpi({ icon, label, value, hint, tone }: { icon: ReactNode; label: string; value: ReactNode; hint?: string; tone: string }) {
   return (
@@ -80,10 +85,9 @@ export default function OverviewPage() {
   const fleets = useFleets({ page: 1, page_size: 5 });
   const recentDevices = useDevices({ page: 1, page_size: 5, sort_by: "created_at", sort_order: "desc" });
 
-  const mapVehicles = useVehicles({ page: 1, page_size: 100 });
   const latest = useLatestTelemetry();
   const activeAlerts = useAlerts({ active: true, page: 1, page_size: 100 });
-  const activeAlertTotal = useActiveAlertTotal();
+  const alertSummary = useAlertSummary();
   const lookup = useVehicleLookup();
 
   // Worst active severity per vehicle, used to colour map markers.
@@ -125,8 +129,8 @@ export default function OverviewPage() {
           icon={<AlertTriangle className="size-6 text-amber-300" />}
           tone="bg-warn/15"
           label="Open alerts"
-          value={activeAlertTotal.data ?? "–"}
-          hint={`${worstAlert.size} ${worstAlert.size === 1 ? "vehicle" : "vehicles"} affected`}
+          value={alertSummary.data?.active_alerts ?? "–"}
+          hint={`${alertSummary.data?.vehicles_with_active_alerts ?? 0} ${alertSummary.data?.vehicles_with_active_alerts === 1 ? "vehicle" : "vehicles"} affected · ${alertSummary.data?.active_by_severity.critical ?? 0} critical`}
         />
         <Kpi
           icon={<Radio className="size-6 text-violet-300" />}
@@ -139,8 +143,17 @@ export default function OverviewPage() {
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
-          <Panel title="Fleet Live Location" icon={<MapPin className="size-4 text-muted" />}>
-            {mapVehicles.isLoading || latest.isLoading ? (
+          <Panel
+            title="Fleet Live Location"
+            icon={<MapPin className="size-4 text-muted" />}
+            action={
+              <Link href="/map" className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-surface-2">
+                <MapIcon className="size-4" />
+                View on map
+              </Link>
+            }
+          >
+            {latest.isLoading ? (
               <div className="h-[360px]">
                 <Spinner />
               </div>
@@ -149,7 +162,7 @@ export default function OverviewPage() {
                 <ErrorBanner error={latest.error} />
               </div>
             ) : (
-              <FleetMap vehicles={mapVehicles.data?.items ?? []} latest={latest.data ?? []} worstAlert={worstAlert} />
+              <FleetMap latest={(latest.data ?? []).slice(0, 100)} worstAlert={worstAlert} />
             )}
           </Panel>
         </div>

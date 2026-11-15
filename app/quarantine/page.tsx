@@ -1,10 +1,12 @@
 "use client";
 
-import { Eye } from "lucide-react";
+import { Eye, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { Button, EmptyState, ErrorBanner, Modal, PageHeader, Pager, Spinner, Table } from "@/components/ui";
+import { Button, ConfirmDialog, EmptyState, ErrorBanner, Modal, PageHeader, Pager, Spinner, Table, useToast } from "@/components/ui";
+import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { formatDateTime, timeAgo } from "@/lib/format";
-import { useDeadLetters } from "@/lib/hooks";
+import { useApiMutation, useDeadLetters } from "@/lib/hooks";
 import type { DeadLetter } from "@/lib/types";
 
 function decodePayload(b64: string): string {
@@ -22,9 +24,18 @@ function decodePayload(b64: string): string {
 }
 
 export default function QuarantinePage() {
+  const { isAdmin, loading: authLoading } = useAuth();
+  const toast = useToast();
   const [page, setPage] = useState(1);
   const { data, isLoading, error, refetch } = useDeadLetters({ page, page_size: 15 });
   const [open, setOpen] = useState<DeadLetter | null>(null);
+  const [deleting, setDeleting] = useState<DeadLetter | null>(null);
+  const replay = useApiMutation((id: string) => api.telemetry.replayDeadLetter(id));
+  const remove = useApiMutation((id: string) => api.telemetry.removeDeadLetter(id));
+
+  if (!authLoading && !isAdmin) {
+    return <EmptyState title="Administrators only" hint="The quarantine queue is restricted to admin accounts." />;
+  }
 
   return (
     <>
@@ -61,9 +72,28 @@ export default function QuarantinePage() {
                   </td>
                   <td className="px-4 py-3 tabular-nums text-muted">{d.attempts}</td>
                   <td className="px-4 py-3 text-right">
-                    <Button size="sm" variant="ghost" onClick={() => setOpen(d)}>
-                      <Eye className="size-4" /> Payload
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      <Button size="sm" variant="ghost" onClick={() => setOpen(d)}>
+                        <Eye className="size-4" /> Payload
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="subtle"
+                        title="Retry ingestion (removed from the queue if accepted)"
+                        loading={replay.isPending && replay.variables === d.id}
+                        onClick={() =>
+                          replay.mutate(d.id, {
+                            onSuccess: (r) => toast(`Replayed: ${(r as { inserted_signals: number }).inserted_signals} signals stored`),
+                            onError: (e) => toast(e instanceof Error ? e.message : "Replay failed", "bad"),
+                          })
+                        }
+                      >
+                        <RotateCcw className="size-4" /> Replay
+                      </Button>
+                      <Button size="sm" variant="subtle" aria-label="Discard message" title="Discard" onClick={() => setDeleting(d)}>
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -72,6 +102,21 @@ export default function QuarantinePage() {
           </>
         )}
       </div>
+
+      {deleting && (
+        <ConfirmDialog
+          title="Discard quarantined message?"
+          message="This permanently removes the message from the queue. It cannot be replayed afterwards."
+          confirmLabel="Discard"
+          loading={remove.isPending}
+          error={remove.error}
+          onClose={() => {
+            setDeleting(null);
+            remove.reset();
+          }}
+          onConfirm={() => remove.mutate(deleting.id, { onSuccess: () => setDeleting(null) })}
+        />
+      )}
 
       {open && (
         <Modal title="Quarantined message" onClose={() => setOpen(null)} width="max-w-2xl">

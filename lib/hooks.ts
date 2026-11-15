@@ -120,19 +120,41 @@ export function useAlerts(q: AlertQuery = {}) {
   });
 }
 
-export function useActiveAlertTotal() {
+export function useAlertSummary(vehicleId?: string) {
   return useQuery({
-    queryKey: ["alerts-total-active"],
-    queryFn: async () => (await api.alerts.list({ active: true, page: 1, page_size: 1 })).pagination.total_items,
+    queryKey: ["alerts-summary", vehicleId ?? null],
+    queryFn: () => api.alerts.summary(vehicleId),
     refetchInterval: 10_000,
   });
 }
 
-export function useLatestTelemetry() {
+/** Open alert count for badges (from /alerts/summary). */
+export function useActiveAlertTotal() {
+  const q = useAlertSummary();
+  return { ...q, data: q.data?.active_alerts };
+}
+
+export function useUsers(enabled = true) {
+  return useQuery({
+    queryKey: ["users"],
+    queryFn: async () => (await api.users.list()).items,
+    enabled,
+  });
+}
+
+export function useDiagnosticProfiles(q: { vehicle_type?: string } = {}) {
+  return useQuery({
+    queryKey: ["diagnostic-profiles", q],
+    queryFn: () => api.diagnosticProfiles.list({ page: 1, page_size: 100, ...q }),
+    staleTime: 30_000,
+  });
+}
+
+export function useLatestTelemetry(refetchInterval = 5_000) {
   return useQuery({
     queryKey: ["telemetry-latest"],
     queryFn: async () => (await api.telemetry.latest()).items,
-    refetchInterval: 5_000,
+    refetchInterval,
   });
 }
 

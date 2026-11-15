@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@/lib/auth";
 import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -24,6 +25,7 @@ import { useApiMutation, useFleets, useVehicles } from "@/lib/hooks";
 import type { Vehicle, VehicleStatus } from "@/lib/types";
 
 function VehiclesView() {
+  const { canWrite } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
   const toast = useToast();
@@ -74,9 +76,11 @@ function VehiclesView() {
         title="Vehicles"
         subtitle="Register, search and manage every vehicle."
         actions={
-          <Button onClick={() => setEditing("new")}>
-            <Plus className="size-4" /> Register vehicle
-          </Button>
+          canWrite ? (
+            <Button onClick={() => setEditing("new")}>
+              <Plus className="size-4" /> Register vehicle
+            </Button>
+          ) : undefined
         }
       />
 
@@ -170,12 +174,14 @@ function VehiclesView() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
+                      {canWrite && <>
                       <Button size="sm" variant="subtle" onClick={() => setEditing(v)} aria-label={`Edit ${vehicleLabel(v)}`}>
                         <Pencil className="size-4" />
                       </Button>
                       <Button size="sm" variant="subtle" onClick={() => setDeleting(v)} aria-label={`Delete ${vehicleLabel(v)}`}>
                         <Trash2 className="size-4" />
                       </Button>
+                      </>}
                     </div>
                   </td>
                 </tr>

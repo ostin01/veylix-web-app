@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Providers } from "@/components/providers";
-import { Shell } from "@/components/shell";
+import { AppFrame } from "@/components/shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,7 +14,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body>
         <Providers>
-          <Shell>{children}</Shell>
+          <AppFrame>{children}</AppFrame>
         </Providers>
       </body>
     </html>

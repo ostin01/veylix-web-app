@@ -5,7 +5,8 @@ import { useState } from "react";
 import { AckButton, AlertStateBadge, SeverityBadge } from "@/components/alerts";
 import { EmptyState, ErrorBanner, PageHeader, Pager, Spinner, Table, cx } from "@/components/ui";
 import { formatDateTime, timeAgo } from "@/lib/format";
-import { useAlerts, useVehicleLookup, useVehicles } from "@/lib/hooks";
+import { useAlertSummary, useAlerts, useVehicleLookup, useVehicles } from "@/lib/hooks";
+import type { AlertSeverity } from "@/lib/types";
 
 type View = "active" | "resolved" | "all";
 const VIEWS: { id: View; label: string }[] = [
@@ -17,7 +18,10 @@ const VIEWS: { id: View; label: string }[] = [
 export default function AlertsPage() {
   const [view, setView] = useState<View>("active");
   const [vehicleId, setVehicleId] = useState("");
+  const [severity, setSeverity] = useState<AlertSeverity | "">("");
+  const [sort, setSort] = useState<"created_at" | "last_observed_at" | "severity">("created_at");
   const [page, setPage] = useState(1);
+  const summary = useAlertSummary(vehicleId || undefined);
 
   const vehicles = useVehicles({ page: 1, page_size: 100 });
   const lookup = useVehicleLookup();
@@ -26,6 +30,9 @@ export default function AlertsPage() {
     page_size: 15,
     vehicle_id: vehicleId,
     active: view === "all" ? "" : view === "active",
+    severity,
+    sort_by: sort,
+    sort_order: "desc",
   });
 
   return (
@@ -65,6 +72,30 @@ export default function AlertsPage() {
             </option>
           ))}
         </select>
+        <select
+          className="input w-auto"
+          value={severity}
+          onChange={(e) => {
+            setSeverity(e.target.value as AlertSeverity | "");
+            setPage(1);
+          }}
+          aria-label="Filter by severity"
+        >
+          <option value="">All severities</option>
+          <option value="critical">Critical</option>
+          <option value="warning">Warning</option>
+        </select>
+        <select className="input w-auto" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Sort alerts">
+          <option value="created_at">Newest first</option>
+          <option value="last_observed_at">Last seen</option>
+          <option value="severity">Severity</option>
+        </select>
+        {summary.data && (
+          <p className="ml-auto text-sm text-muted">
+            <span className="text-bad">{summary.data.active_by_severity.critical} critical</span> ·{" "}
+            <span className="text-warn">{summary.data.active_by_severity.warning} warning</span> open
+          </p>
+        )}
       </div>
 
       <div className="card overflow-hidden">

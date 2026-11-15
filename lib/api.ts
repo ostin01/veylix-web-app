@@ -1,5 +1,11 @@
 import type {
   Alert,
+  AlertSeverity,
+  AlertSummary,
+  DiagnosticProfile,
+  DiagnosticProfileInput,
+  User,
+  UserInput,
   DeadLetter,
   Device,
   DeviceAssignment,
@@ -60,6 +66,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } catch {
     // non-JSON error (e.g. proxy 500)
   }
+  const credentialError =
+    path === "/auth/password" && (body as { detail?: unknown } | undefined)?.detail === "Current password is incorrect";
+  if (res.status === 401 && !credentialError && typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+    // Session is gone (expired refresh token, revoked, password changed elsewhere).
+    const next = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.assign(`/login?reason=expired&next=${next}`);
+  }
   if (!res.ok) {
     const detail = (body as { detail?: unknown } | undefined)?.detail;
     throw new ApiError(res.status, describeDetail(detail, `Request failed (${res.status})`));
@@ -109,6 +122,9 @@ export interface AlertQuery extends Query {
   page_size?: number;
   vehicle_id?: string;
   active?: boolean | "";
+  severity?: AlertSeverity | "";
+  sort_by?: "created_at" | "last_observed_at" | "severity";
+  sort_order?: "asc" | "desc";
 }
 
 export interface TelemetryQuery extends Query {
@@ -121,6 +137,50 @@ export interface TelemetryQuery extends Query {
 }
 
 export const api = {
+  auth: {
+    login: async (username: string, password: string): Promise<User> => {
+      let res: Response;
+      try {
+        res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+          cache: "no-store",
+        });
+      } catch {
+        throw new ApiError(0, "Cannot reach the server. Is the dev server running?");
+      }
+      const body = (await res.json().catch(() => ({}))) as { detail?: unknown; user?: User };
+      if (!res.ok) throw new ApiError(res.status, describeDetail(body.detail, `Sign-in failed (${res.status})`));
+      return body.user as User;
+    },
+    logout: async (): Promise<void> => {
+      await fetch("/api/auth/logout", { method: "POST", cache: "no-store" }).catch(() => undefined);
+    },
+    me: () => request<User>("/auth/me"),
+    changePassword: (current_password: string, new_password: string) =>
+      request<void>("/auth/password", {
+        method: "POST",
+        body: JSON.stringify({ current_password, new_password }),
+      }),
+  },
+
+  users: {
+    list: () => request<{ items: User[] }>("/users"),
+    create: (body: UserInput) => request<User>("/users", { method: "POST", body: JSON.stringify(body) }),
+    setActive: (id: string, is_active: boolean) =>
+      request<User>(`/users/${id}/status`, { method: "PATCH", body: JSON.stringify({ is_active }) }),
+  },
+
+  diagnosticProfiles: {
+    list: (q: Query = {}) => request<Page<DiagnosticProfile>>(`/diagnostic-profiles${qs(q)}`),
+    create: (body: DiagnosticProfileInput) =>
+      request<DiagnosticProfile>("/diagnostic-profiles", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: string, body: Partial<DiagnosticProfileInput>) =>
+      request<DiagnosticProfile>(`/diagnostic-profiles/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+    remove: (id: string) => request<void>(`/diagnostic-profiles/${id}`, { method: "DELETE" }),
+  },
+
   health: async (): Promise<boolean> => {
     try {
       const res = await fetch("/backend-health", { cache: "no-store" });
@@ -152,12 +212,16 @@ export const api = {
 
   alerts: {
     list: (q: AlertQuery = {}) => request<Page<Alert>>(`/alerts${qs(q)}`),
+    summary: (vehicle_id?: string) => request<AlertSummary>(`/alerts/summary${qs({ vehicle_id })}`),
     acknowledge: (id: string) => request<Alert>(`/alerts/${id}/acknowledge`, { method: "POST" }),
   },
 
   telemetry: {
     latest: () => request<{ items: VehicleLatestTelemetry[] }>("/telemetry/latest"),
     deadLetters: (q: Query = {}) => request<Page<DeadLetter>>(`/telemetry/dead-letters${qs(q)}`),
+    replayDeadLetter: (id: string) =>
+      request<{ inserted_signals: number }>(`/telemetry/dead-letters/${id}/replay`, { method: "POST" }),
+    removeDeadLetter: (id: string) => request<void>(`/telemetry/dead-letters/${id}`, { method: "DELETE" }),
     forVehicle: (id: string, q: TelemetryQuery = {}) =>
       request<Page<TelemetryReading>>(`/vehicles/${id}/telemetry${qs(q)}`),
     health: (id: string) => request<VehicleHealth>(`/vehicles/${id}/health`),

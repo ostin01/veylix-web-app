@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@/lib/auth";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -102,6 +103,7 @@ function HealthCard({ vehicleId }: { vehicleId: string }) {
 }
 
 export default function VehicleDetailPage() {
+  const { canWrite } = useAuth();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const toast = useToast();
@@ -156,7 +158,7 @@ export default function VehicleDetailPage() {
             {vehicle.year} {vehicle.make} {vehicle.model}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className={canWrite ? "flex gap-2" : "hidden"}>
           <Button variant="ghost" onClick={() => setEditing(true)}>
             <Pencil className="size-4" /> Edit
           </Button>

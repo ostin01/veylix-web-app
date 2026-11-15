@@ -26,6 +26,7 @@ export interface Fleet {
 export interface Vehicle {
   id: string;
   fleet_id: string;
+  diagnostic_profile_id: string | null;
   name: string | null;
   vin: string | null;
   registration_number: string | null;
@@ -74,6 +75,8 @@ export type VehicleInput = {
   year: number;
   vehicle_type: VehicleType;
   status: VehicleStatus;
+  /** Omit to use the default profile for the vehicle type. */
+  diagnostic_profile_id?: string;
 };
 
 export type DeviceInput = {
@@ -108,6 +111,7 @@ export interface Alert {
   last_observed_at: string;
   created_at: string;
   acknowledged_at: string | null;
+  acknowledged_by_id: string | null;
   resolved_at: string | null;
 }
 
@@ -155,7 +159,7 @@ export interface TelemetryReading {
   unit: string;
   observed_at: string;
   received_at: string;
-  schema_version: number;
+  schema_version: string;
   message_id: string;
 }
 
@@ -169,4 +173,64 @@ export interface DeadLetter {
   attempts: number;
   first_seen_at: string;
   last_seen_at: string;
+}
+
+export interface AlertSummary {
+  active_alerts: number;
+  vehicles_with_active_alerts: number;
+  active_by_severity: Record<AlertSeverity, number>;
+}
+
+/* ---------- Accounts ---------- */
+
+export type UserRole = "admin" | "operator" | "viewer";
+
+export interface User {
+  id: string;
+  username: string;
+  role: UserRole;
+  is_active: boolean;
+  created_by_id: string | null;
+  created_at: string;
+}
+
+export interface UserInput {
+  username: string;
+  password: string;
+  role: UserRole;
+}
+
+/* ---------- Diagnostic profiles ---------- */
+
+export interface DiagnosticThreshold {
+  warning_min?: number | null;
+  critical_min?: number | null;
+  warning_max?: number | null;
+  critical_max?: number | null;
+}
+
+export type ThresholdSignal =
+  | "motor_temperature_c"
+  | "battery_soc_percent"
+  | "battery_voltage_v"
+  | "tire_pressure_psi"
+  | "speed_kmh"
+  | "rpm";
+
+export interface DiagnosticProfile {
+  id: string;
+  name: string;
+  vehicle_type: VehicleType;
+  battery_configuration: string;
+  thresholds: Partial<Record<ThresholdSignal, DiagnosticThreshold>>;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DiagnosticProfileInput {
+  name: string;
+  vehicle_type: VehicleType;
+  battery_configuration: string;
+  thresholds: Partial<Record<ThresholdSignal, DiagnosticThreshold>>;
 }

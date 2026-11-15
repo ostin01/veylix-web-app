@@ -1,5 +1,7 @@
 "use client";
 
+import { useAuth } from "@/lib/auth";
+
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
@@ -68,6 +70,7 @@ function FleetForm({ fleet, onClose }: { fleet?: Fleet; onClose: () => void }) {
 }
 
 export default function FleetsPage() {
+  const { canWrite } = useAuth();
   const toast = useToast();
   const [page, setPage] = useState(1);
   const { data, isLoading, error, refetch } = useFleets({ page, page_size: 10 });
@@ -81,9 +84,11 @@ export default function FleetsPage() {
         title="Fleets"
         subtitle="Group vehicles by depot, region or customer."
         actions={
-          <Button onClick={() => setEditing("new")}>
-            <Plus className="size-4" /> New fleet
-          </Button>
+          canWrite ? (
+            <Button onClick={() => setEditing("new")}>
+              <Plus className="size-4" /> New fleet
+            </Button>
+          ) : undefined
         }
       />
 
@@ -98,7 +103,7 @@ export default function FleetsPage() {
           <EmptyState
             title="No fleets yet"
             hint="A fleet is required before you can register vehicles."
-            action={<Button onClick={() => setEditing("new")}>Create your first fleet</Button>}
+            action={canWrite ? <Button onClick={() => setEditing("new")}>Create your first fleet</Button> : undefined}
           />
         ) : (
           <>
@@ -115,12 +120,14 @@ export default function FleetsPage() {
                   <td className="px-4 py-3 text-muted">{formatDateTime(f.created_at)}</td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
+                      {canWrite && <>
                       <Button size="sm" variant="subtle" onClick={() => setEditing(f)} aria-label={`Edit ${f.name}`}>
                         <Pencil className="size-4" />
                       </Button>
                       <Button size="sm" variant="subtle" onClick={() => setDeleting(f)} aria-label={`Delete ${f.name}`}>
                         <Trash2 className="size-4" />
                       </Button>
+                      </>}
                     </div>
                   </td>
                 </tr>

@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { api, nullable } from "@/lib/api";
-import { useApiMutation, useFleets } from "@/lib/hooks";
+import { useApiMutation, useDiagnosticProfiles, useFleets } from "@/lib/hooks";
 import type { Vehicle, VehicleStatus, VehicleType } from "@/lib/types";
 import { Button, ErrorBanner, Field, Modal, useToast } from "./ui";
 
@@ -22,6 +22,11 @@ export function VehicleForm({ vehicle, defaultFleetId, onClose }: { vehicle?: Ve
   const [type, setType] = useState<VehicleType>(vehicle?.vehicle_type ?? "electric");
   const [status, setStatus] = useState<VehicleStatus>(vehicle?.status ?? "active");
 
+  const [profileId, setProfileId] = useState(vehicle?.diagnostic_profile_id ?? "");
+  const profiles = useDiagnosticProfiles({ vehicle_type: type });
+  // A profile only applies to one vehicle type; ignore a stale choice after the type changes.
+  const profileChoice = profiles.data?.items.some((p) => p.id === profileId) ? profileId : "";
+
   const effectiveFleet = fleetId || fleets.data?.items[0]?.id || "";
 
   const save = useApiMutation(() => {
@@ -35,6 +40,8 @@ export function VehicleForm({ vehicle, defaultFleetId, onClose }: { vehicle?: Ve
       year: Number(year),
       vehicle_type: type,
       status,
+      // Omitted/empty means "use the default profile for this vehicle type".
+      ...(profileChoice ? { diagnostic_profile_id: profileChoice } : {}),
     };
     return vehicle ? api.vehicles.update(vehicle.id, body) : api.vehicles.create(body);
   });
@@ -83,6 +90,17 @@ export function VehicleForm({ vehicle, defaultFleetId, onClose }: { vehicle?: Ve
               {TYPES.map((t) => (
                 <option key={t} value={t}>
                   {t[0]!.toUpperCase() + t.slice(1)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Diagnostic profile" hint="Alert thresholds for this vehicle">
+            <select className="input" value={profileChoice} onChange={(e) => setProfileId(e.target.value)}>
+              <option value="">Default for {type}</option>
+              {profiles.data?.items.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                  {p.is_default ? " (default)" : ""}
                 </option>
               ))}
             </select>

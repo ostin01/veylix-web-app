@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@/lib/auth";
 import { History, Link2, Link2Off, Pencil, Plus, Search } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState, type FormEvent } from "react";
@@ -206,6 +207,7 @@ function HistoryDialog({ device, onClose }: { device: Device; onClose: () => voi
 type Dialog = { kind: "register" } | { kind: "edit" | "assign" | "history" | "unassign"; device: Device } | null;
 
 function DevicesView() {
+  const { canWrite } = useAuth();
   const toast = useToast();
   const params = useSearchParams();
   const [searchInput, setSearchInput] = useState(params.get("search") ?? "");
@@ -230,9 +232,11 @@ function DevicesView() {
         title="Devices"
         subtitle="Telematics units, their vehicle assignment and connectivity."
         actions={
-          <Button onClick={() => setDialog({ kind: "register" })}>
-            <Plus className="size-4" /> Register device
-          </Button>
+          canWrite ? (
+            <Button onClick={() => setDialog({ kind: "register" })}>
+              <Plus className="size-4" /> Register device
+            </Button>
+          ) : undefined
         }
       />
 
@@ -291,6 +295,7 @@ function DevicesView() {
                   <td className="px-4 py-3 text-muted">{timeAgo(d.last_seen_at)}</td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
+                      {canWrite && <>
                       <Button size="sm" variant="subtle" onClick={() => setDialog({ kind: "assign", device: d })} aria-label={`${d.vehicle_id ? "Reassign" : "Assign"} ${d.serial_number}`} title={d.vehicle_id ? "Reassign" : "Assign"}>
                         <Link2 className="size-4" />
                       </Button>
@@ -299,12 +304,15 @@ function DevicesView() {
                           <Link2Off className="size-4" />
                         </Button>
                       )}
+                      </>}
                       <Button size="sm" variant="subtle" onClick={() => setDialog({ kind: "history", device: d })} aria-label={`History for ${d.serial_number}`} title="Assignment history">
                         <History className="size-4" />
                       </Button>
-                      <Button size="sm" variant="subtle" onClick={() => setDialog({ kind: "edit", device: d })} aria-label={`Edit ${d.serial_number}`} title="Edit">
-                        <Pencil className="size-4" />
-                      </Button>
+                      {canWrite && (
+                        <Button size="sm" variant="subtle" onClick={() => setDialog({ kind: "edit", device: d })} aria-label={`Edit ${d.serial_number}`} title="Edit">
+                          <Pencil className="size-4" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>

@@ -10,7 +10,11 @@ import {
   Menu,
   Radio,
   Search,
+  LogOut,
+  Map as MapIcon,
   ShieldAlert,
+  SlidersHorizontal,
+  Users,
   Terminal,
   X,
   type LucideIcon,
@@ -19,21 +23,25 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useActiveAlertTotal, useHealth } from "@/lib/hooks";
-import { currentUser } from "@/lib/user";
+import { useAuth } from "@/lib/auth";
+import { initials as toInitials } from "@/lib/format";
 import { Avatar } from "./avatar";
 import { Logo } from "./logo";
 import { cx } from "./ui";
 
-type NavItem = { href: string; label: string; icon: LucideIcon; soon?: boolean };
+type NavItem = { href: string; label: string; icon: LucideIcon; soon?: boolean; adminOnly?: boolean };
 
 const NAV: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/map", label: "Map", icon: MapIcon },
   { href: "/fleets", label: "Fleets", icon: Layers },
   { href: "/vehicles", label: "Vehicles", icon: Car },
   { href: "/devices", label: "Devices", icon: Radio },
   { href: "/analytics", label: "Analytics", icon: BarChart3, soon: true },
   { href: "/alerts", label: "Alerts", icon: Bell },
-  { href: "/quarantine", label: "Quarantine", icon: ShieldAlert },
+  { href: "/profiles", label: "Profiles", icon: SlidersHorizontal },
+  { href: "/quarantine", label: "Quarantine", icon: ShieldAlert, adminOnly: true },
+  { href: "/users", label: "Users", icon: Users, adminOnly: true },
   { href: "/commands", label: "Commands", icon: Terminal, soon: true },
   { href: "/reports", label: "Reports", icon: FileText, soon: true },
 ];
@@ -41,6 +49,7 @@ const NAV: NavItem[] = [
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { data: activeAlerts } = useActiveAlertTotal();
+  const { user, isAdmin, logout } = useAuth();
   return (
     <div className="flex h-full flex-col">
       <div className="px-5 pb-6 pt-6">
@@ -52,7 +61,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <nav className="flex-1 space-y-1 px-3" aria-label="Main">
-        {NAV.map((item) => {
+        {NAV.filter((item) => !item.adminOnly || isAdmin).map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           const Icon = item.icon;
           return (
@@ -83,11 +92,16 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="border-t border-line p-4">
         <div className="flex items-center gap-3">
-          <Avatar initials={currentUser.initials} />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{currentUser.name}</p>
-            <p className="truncate text-xs text-muted">{currentUser.role}</p>
-          </div>
+          <Link href="/account" onClick={onNavigate} className="flex min-w-0 flex-1 items-center gap-3" aria-label="Account settings">
+            <Avatar initials={toInitials(user?.username ?? "?")} />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{user?.username ?? "…"}</p>
+              <p className="truncate text-xs capitalize text-muted">{user?.role ?? ""}</p>
+            </div>
+          </Link>
+          <button onClick={logout} aria-label="Sign out" title="Sign out" className="rounded-md p-2 text-muted hover:bg-surface-2 hover:text-ink">
+            <LogOut className="size-[18px]" />
+          </button>
         </div>
       </div>
     </div>
@@ -131,6 +145,7 @@ function ApiStatus() {
 
 function Topbar({ onMenu }: { onMenu: () => void }) {
   const router = useRouter();
+  const { user } = useAuth();
   const { data: activeAlerts } = useActiveAlertTotal();
   const [q, setQ] = useState("");
   const submit = (e: FormEvent) => {
@@ -165,14 +180,15 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
         <span className="hidden sm:block">
           <Clock />
         </span>
-        <Avatar initials={currentUser.initials} size="sm" />
+        <Avatar initials={toInitials(user?.username ?? "?")} size="sm" />
       </div>
     </header>
   );
 }
 
-export function Shell({ children }: { children: ReactNode }) {
+function Shell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
   return (
     <div className="min-h-screen">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[230px] border-r border-line bg-[#080d1c] lg:block">
@@ -193,8 +209,38 @@ export function Shell({ children }: { children: ReactNode }) {
 
       <div className="lg:pl-[230px]">
         <Topbar onMenu={() => setOpen(true)} />
-        <main className="mx-auto max-w-[1400px] px-4 py-6 lg:px-8">{children}</main>
+        <main className={pathname === "/map" ? "h-[calc(100dvh-62px)] min-h-[420px]" : "mx-auto max-w-[1400px] px-4 py-6 lg:px-8"}>
+          {children}
+        </main>
       </div>
     </div>
   );
+}
+
+/** Login renders bare; everything else gets the dashboard chrome once the session is confirmed. */
+export function AppFrame({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const { user, loading, error, retry } = useAuth();
+  if (pathname.startsWith("/login")) return <>{children}</>;
+  if (error && !user) {
+    return (
+      <div className="grid min-h-screen place-items-center px-4">
+        <div className="max-w-md space-y-4 text-center">
+          <p className="font-medium">Could not load your account</p>
+          <p className="text-sm text-muted">{error.message}</p>
+          <button onClick={retry} className="rounded-lg border border-line px-4 py-2 text-sm hover:bg-surface-2">
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (loading || !user) {
+    return (
+      <div className="grid min-h-screen place-items-center text-sm text-muted" role="status">
+        Loading…
+      </div>
+    );
+  }
+  return <Shell>{children}</Shell>;
 }
