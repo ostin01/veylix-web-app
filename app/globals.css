@@ -65,3 +65,20 @@ select.input {
 .leaflet-control-attribution a { color: #94a3b8 !important; }
 .leaflet-touch .leaflet-bar a, .leaflet-bar a, .leaflet-bar a.leaflet-bar-part { background: #121a33; color: #e2e8f0; border-color: #1f2a48; }
 .leaflet-bar a:hover, .leaflet-bar a.leaflet-bar-part:hover { background: #1a2547; }
+
+/* Vehicle markers: one element per vehicle that glides between positions */
+.vx-car { background: transparent; border: 0; color: var(--c, #3b82f6); transition: transform 4.8s linear; }
+.vx-map-zooming .vx-car { transition: none !important; }
+.vx-car-wrap { position: relative; width: 38px; height: 38px; display: grid; place-items: center; cursor: pointer; }
+.vx-car-halo { position: absolute; inset: 2px; border-radius: 9999px; background: radial-gradient(circle, color-mix(in srgb, var(--c, #3b82f6) 55%, transparent) 0%, transparent 70%); }
+.vx-car-body { position: relative; color: var(--c, #3b82f6); transform: rotate(var(--h, 0deg)); transition: transform .7s ease; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--c, #3b82f6) 70%, transparent)); }
+.vx-car.is-stale { opacity: .6; }
+.vx-car.is-alert .vx-car-halo { animation: vx-pulse 1.6s ease-out infinite; }
+.vx-car.is-selected .vx-car-halo { inset: -4px; background: radial-gradient(circle, color-mix(in srgb, var(--c, #3b82f6) 75%, transparent) 0%, transparent 72%); }
+.vx-car.is-selected .vx-car-body { transform: rotate(var(--h, 0deg)) scale(1.18); }
+@keyframes vx-pulse { 0% { transform: scale(.7); opacity: 1; } 100% { transform: scale(1.7); opacity: 0; } }
+.vx-live-dot { width: 7px; height: 7px; border-radius: 9999px; background: #22c55e; box-shadow: 0 0 0 0 rgba(34,197,94,.6); animation: vx-live 1.8s infinite; }
+@keyframes vx-live { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,.6); } 100% { box-shadow: 0 0 0 8px rgba(34,197,94,0); } }
+.leaflet-tooltip.vx-car-tip { background: #121a33; color: #e8ecf8; border: 1px solid #1f2a48; border-radius: 8px; box-shadow: none; padding: 3px 8px; font-size: 12px; }
+.leaflet-tooltip.vx-car-tip::before { display: none; }
+@media (prefers-reduced-motion: reduce) { .vx-car, .vx-car-body { transition: none; } .vx-car.is-alert .vx-car-halo, .vx-live-dot { animation: none; } }

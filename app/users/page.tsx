@@ -36,8 +36,8 @@ function CreateUser({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="Create user" onClose={onClose} width="max-w-md">
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Username" hint="3–50 characters: lowercase letters, digits, . _ -">
-          <input className="input" required minLength={3} maxLength={50} pattern="[a-z0-9][a-z0-9_.\-]*" autoComplete="off" value={username} onChange={(e) => setUsername(e.target.value)} />
+        <Field label="Username or email" hint="3–50 characters. A username (letters, digits, . _ -) or an email address; used to sign in.">
+          <input className="input" required minLength={3} maxLength={50} autoComplete="off" value={username} onChange={(e) => setUsername(e.target.value)} />
         </Field>
         <Field label="Temporary password" hint="At least 12 characters">
           <input className="input" type="password" required minLength={12} maxLength={128} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />

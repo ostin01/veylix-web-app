@@ -1,13 +1,13 @@
 "use client";
 
-import { AlertTriangle, Car, CheckCircle2, Layers, Map as MapIcon, MapPin, Radio } from "lucide-react";
+import { Activity, AlertTriangle, BatteryLow, BatteryMedium, Car, CheckCircle2, Gauge, Layers, Map as MapIcon, MapPin, Radio, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { useMemo, type ReactNode } from "react";
 import { SeverityBadge } from "@/components/alerts";
 import { Donut, Legend } from "@/components/donut";
 import dynamic from "next/dynamic";
 import { Badge, EmptyState, ErrorBanner, PageHeader, Spinner, connectionTone } from "@/components/ui";
-import { pct, timeAgo, titleCase } from "@/lib/format";
+import { parseUtc, pct, timeAgo, titleCase } from "@/lib/format";
 import {
   useAlertSummary,
   useAlerts,
@@ -27,16 +27,39 @@ const FleetMap = dynamic(() => import("@/components/fleet-map").then((m) => m.Fl
   loading: () => <div className="grid h-[420px] place-items-center text-sm text-muted">Loading map…</div>,
 });
 
-function Kpi({ icon, label, value, hint, tone }: { icon: ReactNode; label: string; value: ReactNode; hint?: string; tone: string }) {
+function Kpi({ icon, label, value, hint, accent, ratio }: { icon: ReactNode; label: string; value: ReactNode; hint?: string; accent: string; ratio?: number }) {
   return (
-    <div className="card flex items-center gap-4 p-5">
-      <div className={`grid size-12 place-items-center rounded-xl ${tone}`}>{icon}</div>
-      <div>
-        <p className="text-sm text-muted">{label}</p>
-        <p className="text-3xl font-semibold tabular-nums leading-tight">{value}</p>
-        {hint && <p className="text-xs text-muted">{hint}</p>}
+    <div
+      className="relative overflow-hidden rounded-[14px] border p-5"
+      style={{ borderColor: `${accent}40`, background: `linear-gradient(135deg, ${accent}26 0%, rgba(13,19,38,.92) 62%)` }}
+    >
+      <div className="flex items-center gap-4">
+        <div className="grid size-12 shrink-0 place-items-center rounded-xl" style={{ background: `${accent}40`, color: accent, boxShadow: `0 0 24px -4px ${accent}99` }}>
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm text-muted">{label}</p>
+          <p className="text-3xl font-semibold tabular-nums leading-tight">{value}</p>
+        </div>
       </div>
+      {ratio !== undefined && (
+        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/10" role="presentation">
+          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.round(Math.min(1, Math.max(0, ratio)) * 100)}%`, background: accent, boxShadow: `0 0 10px ${accent}` }} />
+        </div>
+      )}
+      {hint && <p className="mt-2 text-xs text-muted">{hint}</p>}
     </div>
+  );
+}
+
+function Insight({ icon, accent, children }: { icon: ReactNode; accent: string; children: ReactNode }) {
+  return (
+    <li className="flex items-center gap-3 px-5 py-3.5">
+      <span className="grid size-9 shrink-0 place-items-center rounded-lg" style={{ background: `${accent}22`, color: accent }}>
+        {icon}
+      </span>
+      <p className="text-sm text-muted">{children}</p>
+    </li>
   );
 }
 
@@ -99,6 +122,25 @@ export default function OverviewPage() {
     return m;
   }, [activeAlerts.data]);
 
+  // Fleet insights computed from the latest reading of each vehicle (no invented numbers).
+  const insights = useMemo(() => {
+    const rows = latest.data ?? [];
+    const now = Date.now();
+    let reporting = 0, moving = 0, lowBattery = 0, stale = 0, socSum = 0, socCount = 0, speedSum = 0;
+    for (const r of rows) {
+      const lat = r.latitude, lon = r.longitude;
+      if (!lat || !lon) continue;
+      reporting += 1;
+      const observed = Math.max(parseUtc(lat.observed_at).getTime(), parseUtc(lon.observed_at).getTime());
+      if (now - observed > 2 * 60 * 1000) { stale += 1; continue; }
+      const speed = r.speed_kmh?.value ?? 0;
+      if (speed >= 1) { moving += 1; speedSum += speed; }
+      const soc = r.battery_soc_percent?.value;
+      if (soc != null) { socSum += soc; socCount += 1; if (soc < 20) lowBattery += 1; }
+    }
+    return { reporting, moving, lowBattery, stale, avgSoc: socCount ? socSum / socCount : null, avgSpeed: moving ? speedSum / moving : null };
+  }, [latest.data]);
+
   const loadError = vehicles.error ?? devices.error ?? fleets.error;
   const n = (q: { data?: number }) => q.data ?? 0;
   const vehicleSlices = [
@@ -114,7 +156,7 @@ export default function OverviewPage() {
 
   return (
     <>
-      <PageHeader title="Fleet Overview" subtitle="Live data from the Veylix API. Positions refresh every 5 seconds." />
+      <PageHeader title="Fleet Overview" subtitle="Real-time insights. Complete control." />
 
       {loadError != null && (
         <div className="mb-6">
@@ -123,20 +165,36 @@ export default function OverviewPage() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={<Car className="size-6 text-blue-400" />} tone="bg-brand-2/15" label="Total vehicles" value={vehicles.data ?? "–"} hint={`${n(fleetTotal)} ${n(fleetTotal) === 1 ? "fleet" : "fleets"}`} />
-        <Kpi icon={<CheckCircle2 className="size-6 text-green-400" />} tone="bg-ok/15" label="Active vehicles" value={active.data ?? "–"} hint={`${n(maintenance)} in maintenance`} />
         <Kpi
-          icon={<AlertTriangle className="size-6 text-amber-300" />}
-          tone="bg-warn/15"
+          icon={<Car className="size-6" />}
+          accent="#3b82f6"
+          label="Total vehicles"
+          value={vehicles.data ?? "–"}
+          ratio={n(vehicles) ? 1 : 0}
+          hint={`${n(fleetTotal)} ${n(fleetTotal) === 1 ? "fleet" : "fleets"}`}
+        />
+        <Kpi
+          icon={<CheckCircle2 className="size-6" />}
+          accent="#22c55e"
+          label="Active vehicles"
+          value={active.data ?? "–"}
+          ratio={n(vehicles) ? n(active) / n(vehicles) : 0}
+          hint={`${n(maintenance)} in maintenance · ${n(inactive)} inactive`}
+        />
+        <Kpi
+          icon={<AlertTriangle className="size-6" />}
+          accent={(alertSummary.data?.active_by_severity.critical ?? 0) > 0 ? "#ef4444" : "#f59e0b"}
           label="Open alerts"
           value={alertSummary.data?.active_alerts ?? "–"}
+          ratio={n(vehicles) ? (alertSummary.data?.vehicles_with_active_alerts ?? 0) / n(vehicles) : 0}
           hint={`${alertSummary.data?.vehicles_with_active_alerts ?? 0} ${alertSummary.data?.vehicles_with_active_alerts === 1 ? "vehicle" : "vehicles"} affected · ${alertSummary.data?.active_by_severity.critical ?? 0} critical`}
         />
         <Kpi
-          icon={<Radio className="size-6 text-violet-300" />}
-          tone="bg-brand/15"
+          icon={<Radio className="size-6" />}
+          accent="#8b5cf6"
           label="Device connectivity"
           value={n(devices) ? pct(n(online), n(devices)) : "–"}
+          ratio={n(devices) ? n(online) / n(devices) : 0}
           hint={`${n(online)} of ${n(devices)} devices online`}
         />
       </div>
@@ -162,7 +220,7 @@ export default function OverviewPage() {
                 <ErrorBanner error={latest.error} />
               </div>
             ) : (
-              <FleetMap latest={(latest.data ?? []).slice(0, 100)} worstAlert={worstAlert} />
+              <FleetMap latest={(latest.data ?? []).slice(0, 100)} worstAlert={worstAlert} updatedAt={latest.dataUpdatedAt || undefined} />
             )}
           </Panel>
         </div>
@@ -182,28 +240,34 @@ export default function OverviewPage() {
             <EmptyState title="No open alerts" hint="Alerts are raised automatically when telemetry crosses a diagnostic threshold." />
           ) : (
             <ul className="divide-y divide-line/70">
-              {activeAlerts.data!.items.slice(0, 6).map((a) => (
-                <li key={a.id} className="flex items-start justify-between gap-3 px-5 py-3">
-                  <div className="min-w-0">
-                    <Link href={`/vehicles/${a.vehicle_id}`} className="block truncate font-medium hover:text-brand">
-                      {lookup.label(a.vehicle_id)}
-                    </Link>
-                    <p className="truncate text-xs text-muted" title={a.message}>
-                      {a.message}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <SeverityBadge severity={a.severity} />
-                    <span className="text-[11px] text-muted">{timeAgo(a.last_observed_at)}</span>
-                  </div>
-                </li>
-              ))}
+              {activeAlerts.data!.items.slice(0, 6).map((a) => {
+                const color = a.severity === "critical" ? "#ef4444" : "#f59e0b";
+                return (
+                  <li key={a.id} className="flex items-center gap-3 px-5 py-3">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-full" style={{ background: `${color}22`, color }}>
+                      <AlertTriangle className="size-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <Link href={`/vehicles/${a.vehicle_id}`} className="block truncate font-medium hover:text-brand">
+                        {lookup.label(a.vehicle_id)}
+                      </Link>
+                      <p className="truncate text-xs text-muted" title={a.message}>
+                        {a.message}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <span className="text-[11px] text-muted">{timeAgo(a.last_observed_at)}</span>
+                      <SeverityBadge severity={a.severity} />
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Panel>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+      <div className="mt-6 grid gap-6 lg:grid-cols-2 2xl:grid-cols-4">
         <Panel title="Vehicle Status">
           <div className="flex items-center gap-5 p-5">
             <Donut centerLabel="Vehicles" slices={vehicleSlices} />
@@ -231,6 +295,30 @@ export default function OverviewPage() {
                   <Badge tone={connectionTone[d.connection_status]}>{titleCase(d.connection_status)}</Badge>
                 </li>
               ))}
+            </ul>
+          )}
+        </Panel>
+
+        <Panel title="Live Insights" icon={<Activity className="size-4 text-brand" />}>
+          {insights.reporting === 0 ? (
+            <EmptyState title="Waiting for telemetry" hint="Insights appear once vehicles start reporting." />
+          ) : (
+            <ul className="divide-y divide-line/70">
+              <Insight icon={<Gauge className="size-5" />} accent="#22c55e">
+                <span className="font-semibold text-ink">{insights.moving}</span> of {insights.reporting} vehicles moving
+                {insights.avgSpeed != null && <> at an average of <span className="font-semibold text-ink">{insights.avgSpeed.toFixed(0)} km/h</span></>}
+              </Insight>
+              {insights.avgSoc != null && (
+                <Insight icon={<BatteryMedium className="size-5" />} accent="#3b82f6">
+                  Average battery level is <span className="font-semibold text-ink">{insights.avgSoc.toFixed(0)}%</span> across the fleet
+                </Insight>
+              )}
+              <Insight icon={<BatteryLow className="size-5" />} accent={insights.lowBattery ? "#f59e0b" : "#64748b"}>
+                <span className="font-semibold text-ink">{insights.lowBattery}</span> {insights.lowBattery === 1 ? "vehicle has" : "vehicles have"} battery below 20%
+              </Insight>
+              <Insight icon={<WifiOff className="size-5" />} accent={insights.stale ? "#ef4444" : "#64748b"}>
+                <span className="font-semibold text-ink">{insights.stale}</span> {insights.stale === 1 ? "vehicle has" : "vehicles have"} sent no data for 2+ minutes
+              </Insight>
             </ul>
           )}
         </Panel>

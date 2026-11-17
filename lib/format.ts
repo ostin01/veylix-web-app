@@ -39,7 +39,7 @@ export function vehicleLabel(v: { name: string | null; make: string; model: stri
 
 export function initials(name: string): string {
   return name
-    .split(/\s+/)
+    .split(/[\s._@-]+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((p) => p[0]!.toUpperCase())

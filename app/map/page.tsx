@@ -12,7 +12,7 @@ const FleetMap = dynamic(() => import("@/components/fleet-map").then((module) =>
 });
 
 export default function MapPage() {
-  const latest = useLatestTelemetry(15_000);
+  const latest = useLatestTelemetry();
   const alerts = useAlerts({ active: true, page: 1, page_size: 100 });
   const worstAlert = useMemo(() => {
     const result = new Map<string, AlertSeverity>();
@@ -26,7 +26,7 @@ export default function MapPage() {
 
   return (
     <div className="relative h-full min-h-[420px]">
-      <FleetMap latest={latest.data ?? []} worstAlert={worstAlert} fullScreen />
+      <FleetMap latest={latest.data ?? []} worstAlert={worstAlert} fullScreen updatedAt={latest.dataUpdatedAt || undefined} />
       {latest.isLoading && (
         <div className="absolute inset-0 z-[600] grid place-items-center bg-bg/35 backdrop-blur-[1px]">
           <Spinner label="Loading live positions" />
