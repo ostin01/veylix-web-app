@@ -1,6 +1,6 @@
-import { Activity, ArrowUpRight, Battery, CheckCircle2, Clock3, Radio, WifiOff, Wrench } from "lucide-react";
+import { Activity, ArrowUpRight, Battery, CheckCircle2, Clock3, Radio, RefreshCw, WifiOff, Wrench } from "lucide-react";
 import Link from "next/link";
-import { Badge, EmptyState, Spinner, Table } from "@/components/ui";
+import { Badge, Button, EmptyState, Spinner, Table } from "@/components/ui";
 import { formatDateTime, timeAgo } from "@/lib/format";
 import type { Alert, Device } from "@/lib/types";
 
@@ -8,14 +8,15 @@ function HealthRow({ icon: Icon, label, value, ok }: { icon: typeof Activity; la
   return <div className="flex items-center gap-3 px-5 py-3.5"><Icon className="size-4 text-muted" /><span className="flex-1 text-sm">{label}</span><span className={`text-xs ${ok ? "text-green-300" : "text-muted"}`}>{value}</span>{ok ? <CheckCircle2 className="size-4 text-ok" /> : <WifiOff className="size-4 text-muted" />}</div>;
 }
 
-export function SystemHealthPanel({ apiLoading, apiOnline, telemetryLoading, telemetryError, telemetryCount }: {
-  apiLoading: boolean; apiOnline: boolean; telemetryLoading: boolean; telemetryError: boolean; telemetryCount: number;
+export function SystemHealthPanel({ apiLoading, apiOnline, databaseStatus, telemetryLoading, telemetryError, telemetryCount }: {
+  apiLoading: boolean; apiOnline: boolean; databaseStatus?: string; telemetryLoading: boolean; telemetryError: boolean; telemetryCount: number;
 }) {
   return <section className="card overflow-hidden"><div className="flex items-center justify-between border-b border-line px-5 py-4"><div><h2 className="font-semibold">System health</h2><p className="mt-1 text-xs text-muted">Signals currently exposed by the frontend API</p></div><Wrench className="size-4 text-muted" /></div><div className="divide-y divide-line/70">
     <HealthRow icon={Activity} label="Backend API" value={apiLoading ? "Checking" : apiOnline ? "Reachable" : "Unreachable"} ok={apiOnline} />
+    <HealthRow icon={CheckCircle2} label="Database" value={databaseStatus ?? "Checking"} ok={databaseStatus === "healthy"} />
     <HealthRow icon={Battery} label="Latest telemetry endpoint" value={telemetryLoading ? "Checking" : telemetryError ? "Unavailable" : `${telemetryCount} vehicles reporting`} ok={!telemetryError && !telemetryLoading} />
-    <HealthRow icon={Radio} label="MQTT ingestion pipeline" value="Not connected to frontend" ok={false} />
-    <HealthRow icon={Activity} label="Live event stream (SSE)" value="Not available" ok={false} />
+    <HealthRow icon={Radio} label="MQTT ingestion pipeline" value="Managed by backend services" ok={false} />
+    <HealthRow icon={Activity} label="Admin preview events" value="Loaded on demand; SSE planned" ok={true} />
   </div></section>;
 }
 
@@ -31,6 +32,6 @@ export function DeviceConnectivityPanel({ devices, loading, vehicleLabel }: { de
   </section>;
 }
 
-export function AdminRefreshNote() {
-  return <p className="mt-4 flex items-center gap-2 text-xs text-muted"><Clock3 className="size-3.5" /> Data refreshes using the existing API polling. True event testing and streaming need backend endpoints and MQTT ingestion.</p>;
+export function AdminRefreshNote({ onRefresh }: { onRefresh: () => void }) {
+  return <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted"><p className="flex items-center gap-2"><Clock3 className="size-3.5" /> Admin data is loaded on page open and after actions. Background polling is disabled on this page.</p><Button variant="subtle" size="sm" onClick={onRefresh}><RefreshCw className="size-3.5" /> Refresh snapshot</Button></div>;
 }

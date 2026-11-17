@@ -83,12 +83,15 @@ export async function forward(req: NextRequest, segments: string[]): Promise<Nex
   }
 
   const empty = upstream.status === 204 || upstream.status === 205 || req.method === "HEAD";
-  const res = new NextResponse(empty ? null : await upstream.arrayBuffer(), {
+  const isEventStream = path === "events/stream" && upstream.headers.get("content-type")?.includes("text/event-stream");
+  const headers = new Headers({ "cache-control": "no-store, no-transform" });
+  for (const name of ["content-type", "x-accel-buffering"]) {
+    const value = upstream.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+  const res = new NextResponse(empty ? null : isEventStream ? upstream.body : await upstream.arrayBuffer(), {
     status: upstream.status,
-    headers: {
-      "cache-control": "no-store",
-      ...(upstream.headers.get("content-type") ? { "content-type": upstream.headers.get("content-type")! } : {}),
-    },
+    headers,
   });
 
   if (upstream.status === 401) {

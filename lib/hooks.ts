@@ -6,11 +6,10 @@ import { vehicleLabel } from "./format";
 
 const LIVE_MS = 15_000;
 
-export function useHealth() {
+export function useHealth(live = true) {
   return useQuery({
     queryKey: ["health"],
     queryFn: api.health,
-    refetchInterval: 10_000,
   });
 }
 
@@ -19,7 +18,6 @@ export function useFleets(q: { page?: number; page_size?: number } = {}) {
     queryKey: ["fleets", q],
     queryFn: () => api.fleets.list(q),
     placeholderData: keepPreviousData,
-    refetchInterval: LIVE_MS,
   });
 }
 
@@ -31,12 +29,11 @@ export function useFleet(id: string | null | undefined) {
   });
 }
 
-export function useVehicles(q: VehicleQuery = {}) {
+export function useVehicles(q: VehicleQuery = {}, live = true) {
   return useQuery({
     queryKey: ["vehicles", q],
     queryFn: () => api.vehicles.list(q),
     placeholderData: keepPreviousData,
-    refetchInterval: LIVE_MS,
   });
 }
 
@@ -45,16 +42,14 @@ export function useVehicle(id: string | null | undefined) {
     queryKey: ["vehicle", id],
     queryFn: () => api.vehicles.get(id as string),
     enabled: !!id,
-    refetchInterval: LIVE_MS,
   });
 }
 
-export function useDevices(q: DeviceQuery = {}) {
+export function useDevices(q: DeviceQuery = {}, live = true) {
   return useQuery({
     queryKey: ["devices", q],
     queryFn: () => api.devices.list(q),
     placeholderData: keepPreviousData,
-    refetchInterval: LIVE_MS,
   });
 }
 
@@ -63,7 +58,6 @@ export function useDevice(id: string | null | undefined) {
     queryKey: ["device", id],
     queryFn: () => api.devices.get(id as string),
     enabled: !!id,
-    refetchInterval: LIVE_MS,
   });
 }
 
@@ -80,7 +74,6 @@ export function useVehicleTotal(filter: VehicleQuery = {}) {
   return useQuery({
     queryKey: ["vehicles-total", filter],
     queryFn: async () => (await api.vehicles.list({ ...filter, page: 1, page_size: 1 })).pagination.total_items,
-    refetchInterval: LIVE_MS,
   });
 }
 
@@ -88,7 +81,6 @@ export function useDeviceTotal(filter: DeviceQuery = {}) {
   return useQuery({
     queryKey: ["devices-total", filter],
     queryFn: async () => (await api.devices.list({ ...filter, page: 1, page_size: 1 })).pagination.total_items,
-    refetchInterval: LIVE_MS,
   });
 }
 
@@ -96,7 +88,6 @@ export function useFleetTotal() {
   return useQuery({
     queryKey: ["fleets-total"],
     queryFn: async () => (await api.fleets.list({ page: 1, page_size: 1 })).pagination.total_items,
-    refetchInterval: LIVE_MS,
   });
 }
 
@@ -111,26 +102,24 @@ export function useApiMutation<TArgs = void, TResult = unknown>(fn: (args: TArgs
 
 /* ---------- Alerts, telemetry and health ---------- */
 
-export function useAlerts(q: AlertQuery = {}) {
+export function useAlerts(q: AlertQuery = {}, live = true) {
   return useQuery({
     queryKey: ["alerts", q],
     queryFn: () => api.alerts.list(q),
     placeholderData: keepPreviousData,
-    refetchInterval: 10_000,
   });
 }
 
-export function useAlertSummary(vehicleId?: string) {
+export function useAlertSummary(vehicleId?: string, live = true) {
   return useQuery({
     queryKey: ["alerts-summary", vehicleId ?? null],
     queryFn: () => api.alerts.summary(vehicleId),
-    refetchInterval: 10_000,
   });
 }
 
 /** Open alert count for badges (from /alerts/summary). */
-export function useActiveAlertTotal() {
-  const q = useAlertSummary();
+export function useActiveAlertTotal(live = true) {
+  const q = useAlertSummary(undefined, live);
   return { ...q, data: q.data?.active_alerts };
 }
 
@@ -150,11 +139,10 @@ export function useDiagnosticProfiles(q: { vehicle_type?: string } = {}) {
   });
 }
 
-export function useLatestTelemetry(refetchInterval = 5_000) {
+export function useLatestTelemetry() {
   return useQuery({
     queryKey: ["telemetry-latest"],
     queryFn: async () => (await api.telemetry.latest()).items,
-    refetchInterval,
   });
 }
 
@@ -163,7 +151,6 @@ export function useVehicleHealth(id: string | null | undefined) {
     queryKey: ["vehicle-health", id],
     queryFn: () => api.telemetry.health(id as string),
     enabled: !!id,
-    refetchInterval: 5_000,
   });
 }
 
@@ -172,7 +159,6 @@ export function useVehicleTelemetry(id: string | null | undefined, q: TelemetryQ
     queryKey: ["vehicle-telemetry", id, q],
     queryFn: () => api.telemetry.forVehicle(id as string, q),
     enabled: !!id,
-    refetchInterval: 5_000,
   });
 }
 
@@ -181,7 +167,6 @@ export function useDeadLetters(q: { page?: number; page_size?: number } = {}) {
     queryKey: ["dead-letters", q],
     queryFn: () => api.telemetry.deadLetters(q),
     placeholderData: keepPreviousData,
-    refetchInterval: 15_000,
   });
 }
 

@@ -96,6 +96,7 @@ export type DeviceUpdateInput = {
 export type AlertSeverity = "warning" | "critical";
 
 export interface Alert {
+    is_simulated?: boolean;
   id: string;
   vehicle_id: string;
   device_id: string;
@@ -136,6 +137,7 @@ export interface VehicleHealth {
 }
 
 export interface LatestSignal {
+    is_simulated?: boolean;
   value: number | null;
   unit: string;
   observed_at: string;
@@ -150,6 +152,7 @@ export interface VehicleLatestTelemetry {
 }
 
 export interface TelemetryReading {
+    is_simulated?: boolean;
   id: string;
   vehicle_id: string;
   device_id: string;
@@ -179,6 +182,39 @@ export interface AlertSummary {
   active_alerts: number;
   vehicles_with_active_alerts: number;
   active_by_severity: Record<AlertSeverity, number>;
+}
+
+export type AdminScenario =
+  | "vehicle_moves"
+  | "battery_drops"
+  | "overspeed"
+  | "device_offline"
+  | "device_reconnects"
+  | "engine_fault";
+
+export interface AdminEvent {
+  id: string;
+  type: string;
+  vehicle_id: string;
+  vehicle: string;
+  scenario: AdminScenario;
+  at: string;
+  detail: string;
+  simulated: true;
+  triggered_by: string;
+  outcome: string;
+}
+
+export interface AdminSystemSummary {
+  api: string;
+  database: string;
+  counts: {
+    fleets: number;
+    vehicles: number;
+    devices: number;
+    active_alerts: number;
+    telemetry_readings: number;
+  } | null;
 }
 
 /* ---------- Accounts ---------- */

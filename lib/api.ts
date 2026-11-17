@@ -2,6 +2,9 @@ import type {
   Alert,
   AlertSeverity,
   AlertSummary,
+  AdminEvent,
+  AdminScenario,
+  AdminSystemSummary,
   DiagnosticProfile,
   DiagnosticProfileInput,
   User,
@@ -188,6 +191,17 @@ export const api = {
     } catch {
       return false;
     }
+  },
+
+  admin: {
+    system: () => request<AdminSystemSummary>("/admin/system"),
+    events: () => request<{ items: AdminEvent[] }>("/admin/events?limit=30"),
+    simulate: (vehicle_id: string, scenario: AdminScenario) =>
+      request<AdminEvent>("/admin/simulations", {
+        method: "POST",
+        body: JSON.stringify({ vehicle_id, scenario }),
+      }),
+    clearEvents: () => request<void>("/admin/events/simulated", { method: "DELETE" }),
   },
 
   fleets: {

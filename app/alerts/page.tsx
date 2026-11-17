@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { AckButton, AlertStateBadge, SeverityBadge } from "@/components/alerts";
-import { EmptyState, ErrorBanner, PageHeader, Pager, Spinner, Table, cx } from "@/components/ui";
+import { Badge, EmptyState, ErrorBanner, PageHeader, Pager, Spinner, Table, cx } from "@/components/ui";
 import { formatDateTime, timeAgo } from "@/lib/format";
 import { useAlertSummary, useAlerts, useVehicleLookup, useVehicles } from "@/lib/hooks";
 import type { AlertSeverity } from "@/lib/types";
@@ -124,7 +124,7 @@ export default function AlertsPage() {
                     </Link>
                   </td>
                   <td className="max-w-sm px-4 py-3">
-                    <p>{a.message}</p>
+                    <div className="flex items-center gap-2"><p>{a.message}</p>{a.is_simulated && <Badge tone="amber">Test simulation</Badge>}</div>
                     <p className="text-xs text-muted">Threshold: {a.threshold}</p>
                   </td>
                   <td className="px-4 py-3 text-muted" title={formatDateTime(a.first_observed_at)}>

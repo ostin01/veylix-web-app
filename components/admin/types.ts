@@ -1,12 +1,7 @@
-export type Scenario = "vehicle_moves" | "battery_drops" | "overspeed" | "device_offline" | "device_reconnects" | "engine_fault";
+import type { AdminEvent, AdminScenario } from "@/lib/types";
 
-export type LocalEvent = {
-  id: string;
-  type: string;
-  vehicle: string;
-  at: string;
-  detail: string;
-};
+export type Scenario = AdminScenario;
+export type LocalEvent = AdminEvent;
 
 export const scenarios: { id: Scenario; label: string; event: string; detail: string }[] = [
   { id: "vehicle_moves", label: "Vehicle moves", event: "vehicle.location.updated", detail: "Preview location update" },
