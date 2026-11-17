@@ -16,6 +16,7 @@ import {
   SlidersHorizontal,
   Users,
   Terminal,
+  Wrench,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -42,6 +43,7 @@ const NAV: NavItem[] = [
   { href: "/profiles", label: "Profiles", icon: SlidersHorizontal },
   { href: "/quarantine", label: "Quarantine", icon: ShieldAlert, adminOnly: true },
   { href: "/users", label: "Users", icon: Users, adminOnly: true },
+  { href: "/admin", label: "Admin console", icon: Wrench, adminOnly: true },
   { href: "/commands", label: "Commands", icon: Terminal, soon: true },
   { href: "/reports", label: "Reports", icon: FileText, soon: true },
 ];
